@@ -1,0 +1,124 @@
+[
+    {
+        "id": "8eec5555cae403b6",
+        "type": "tab",
+        "label": "Fluxo 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "0953842f651806eb",
+        "type": "inject",
+        "z": "8eec5555cae403b6",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "30",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 180,
+        "wires": [
+            [
+                "cc08cdb33fe83008"
+            ]
+        ]
+    },
+    {
+        "id": "cc08cdb33fe83008",
+        "type": "function",
+        "z": "8eec5555cae403b6",
+        "name": "function 7",
+        "func": "const now = new Date()\n\nconst dataHora = now.toLocaleString('pt-BR', {\n    timeZone: 'America/Sao_Paulo',\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n    hour: '2-digit',\n    minute: '2-digit',\n    second: '2-digit'\n})\n\n// Função para gerar temperatura\nfunction gerarTemperatura(min, max) {\n    return Number((Math.random() * (max - min) + min).toFixed(2))\n}\n\n// Gerando 4 temperaturas\nconst temperatura1 = gerarTemperatura(15, 30)\nconst temperatura2 = gerarTemperatura(15, 30)\nconst temperatura3 = gerarTemperatura(15, 30)\nconst temperatura4 = gerarTemperatura(15, 30)\n\nmsg.payload = [[\n    dataHora,\n    temperatura1,\n    temperatura2,\n    temperatura3,\n    temperatura4\n]]\n\nreturn msg",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 180,
+        "wires": [
+            [
+                "b5bf2e28e373fe72",
+                "afd9bbec9c16f194"
+            ]
+        ]
+    },
+    {
+        "id": "b5bf2e28e373fe72",
+        "type": "debug",
+        "z": "8eec5555cae403b6",
+        "name": "debug 4",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "afd9bbec9c16f194",
+        "type": "GSheetAdvance",
+        "z": "8eec5555cae403b6",
+        "creds": "fee64030422f7a8e",
+        "method": "append",
+        "action": "",
+        "sheet": "13i86WpmQ62Bu9nF0LTeH_NgSpQeagO1VTY8ad2XUQL8",
+        "cells": "dados1",
+        "flatten": false,
+        "name": "",
+        "x": 610,
+        "y": 280,
+        "wires": [
+            [
+                "9d2a0879626c3919"
+            ]
+        ]
+    },
+    {
+        "id": "9d2a0879626c3919",
+        "type": "debug",
+        "z": "8eec5555cae403b6",
+        "name": "debug 5",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "fee64030422f7a8e",
+        "type": "gauthAdv",
+        "name": "dashboard-sheets@neo-demo-492801.iam.gserviceaccount.com"
+    },
+    {
+        "id": "e1af1b99a257bc23",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-google-sheets-advance": "1.0.0"
+        }
+    }
+]
