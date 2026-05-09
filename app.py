@@ -13,6 +13,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+st.image("logo.jpg", width=80)
+
 USERNAME  = "admin"
 PASSWORD  = "admin"
 TEMPERATURAS = ["Temperatura1", "Temperatura2", "Temperatura3", "Temperatura4"]
