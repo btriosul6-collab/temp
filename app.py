@@ -13,8 +13,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.image("logo.jpg", width=80)
-
 USERNAME  = "admin"
 PASSWORD  = "admin"
 TEMPERATURAS = ["Temperatura1", "Temperatura2", "Temperatura3", "Temperatura4"]
@@ -174,6 +172,7 @@ def classificar_temperatura(valor):
 def login():
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
+        st.image("logo.jpg", width=160)
         st.markdown("### ◉ VOLTNADI")
         st.caption("Sistema de Supervisão · v1.0")
         st.divider()
