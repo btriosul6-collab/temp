@@ -273,6 +273,7 @@ def criar_grafico_sensor(df_sensor, nome_sensor, agora):
         xaxis=dict(
             gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
             range=[inicio_plot, agora],
+            tickmode="linear",
             dtick=10 * 60 * 1000,
             tickformat="%H:%M",
         ),
@@ -309,6 +310,7 @@ def criar_grafico_geral(df_valid, agora):
         xaxis=dict(
             gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
             range=[inicio_plot, agora],
+            tickmode="linear",
             dtick=10 * 60 * 1000,
             tickformat="%H:%M",
         ),
