@@ -28,7 +28,7 @@ LIM_ALERTA_MAX = 32.0
 STALE_MIN      = 5
 
 # =========================================================
-# CSS — injetado FORA do fragment (funciona normalmente)
+# CSS
 # =========================================================
 st.markdown("""
 <style>
@@ -59,7 +59,6 @@ p, .stMarkdown p {
     font-family: 'Inter', sans-serif;
 }
 
-/* Caption / legenda */
 .stCaption, [data-testid="stCaptionContainer"] p {
     color: #6c7a89 !important;
     font-family: 'JetBrains Mono', monospace !important;
@@ -68,7 +67,6 @@ p, .stMarkdown p {
     text-transform: uppercase !important;
 }
 
-/* Metrics */
 [data-testid="metric-container"] {
     background: linear-gradient(135deg, #131722, #1a1f2e) !important;
     border: 1px solid #2a3142 !important;
@@ -95,10 +93,8 @@ p, .stMarkdown p {
     letter-spacing: 1px !important;
 }
 
-/* Divider */
 hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
 
-/* Button */
 .stButton > button {
     background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%) !important;
     color: #0a0e1a !important; border: none !important;
@@ -111,7 +107,6 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
     box-shadow: 0 0 16px rgba(0,212,255,0.45) !important;
 }
 
-/* Inputs */
 .stTextInput input, .stPasswordInput input {
     background: #0a0e1a !important; border: 1px solid #2a3142 !important;
     color: #e0e6ed !important; font-family: 'JetBrains Mono', monospace !important;
@@ -126,7 +121,6 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
     letter-spacing: 1.5px !important;
 }
 
-/* Expander */
 [data-testid="stExpander"] {
     background: #131722 !important; border: 1px solid #2a3142 !important;
     border-radius: 4px !important;
@@ -137,7 +131,6 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
     letter-spacing: 1.5px !important;
 }
 
-/* DataFrame / alerts / plotly */
 .stDataFrame { background: #131722; border: 1px solid #2a3142; border-radius: 4px; }
 .stAlert {
     background: #131722 !important; border: 1px solid #2a3142 !important;
@@ -173,7 +166,6 @@ def login():
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
         st.image("logo.png", width=160)
-        
         st.markdown("### ◉ BODYTECH")
         st.caption("Sistema de Supervisão de Temperatura")
         st.divider()
@@ -259,9 +251,11 @@ def criar_gauge(valor_atual, valor_min, valor_max, sensor):
 # =========================================================
 # PLOTLY — TREND INDIVIDUAL
 # =========================================================
-def criar_grafico_sensor(df_sensor, nome_sensor):
+def criar_grafico_sensor(df_sensor, nome_sensor, agora):
     cor = CORES_SENSORES[nome_sensor]
     r, g, b = int(cor[1:3], 16), int(cor[3:5], 16), int(cor[5:7], 16)
+    inicio_plot = agora - pd.Timedelta(hours=12)
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=df_sensor["DataHora"], y=df_sensor[nome_sensor],
@@ -271,11 +265,17 @@ def criar_grafico_sensor(df_sensor, nome_sensor):
     ))
     for lim, cl in [(LIM_FRIO, "#00b4d8"), (LIM_NORMAL_MAX, "#06ffa5"), (LIM_ALERTA_MAX, "#ffaa00")]:
         fig.add_hline(y=lim, line_dash="dot", line_color=cl, opacity=0.4, line_width=1)
+
     fig.update_layout(
         height=240, margin=dict(l=44, r=16, t=10, b=36),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
         font=dict(family="JetBrains Mono, monospace", size=9, color="#6c7a89"),
-        xaxis=dict(gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89")),
+        xaxis=dict(
+            gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
+            range=[inicio_plot, agora],
+            dtick=10 * 60 * 1000,
+            tickformat="%H:%M",
+        ),
         yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
                    tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
         showlegend=False, hovermode="x unified",
@@ -288,7 +288,9 @@ def criar_grafico_sensor(df_sensor, nome_sensor):
 # =========================================================
 # PLOTLY — TREND CONSOLIDADO
 # =========================================================
-def criar_grafico_geral(df_valid):
+def criar_grafico_geral(df_valid, agora):
+    inicio_plot = agora - pd.Timedelta(hours=12)
+
     fig = go.Figure()
     for sensor in TEMPERATURAS:
         fig.add_trace(go.Scatter(
@@ -299,11 +301,17 @@ def criar_grafico_geral(df_valid):
         ))
     fig.add_hrect(y0=LIM_FRIO, y1=LIM_NORMAL_MAX,       fillcolor="#06ffa5", opacity=0.05, line_width=0)
     fig.add_hrect(y0=LIM_NORMAL_MAX, y1=LIM_ALERTA_MAX, fillcolor="#ffaa00", opacity=0.05, line_width=0)
+
     fig.update_layout(
         height=380, margin=dict(l=44, r=20, t=20, b=50),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
         font=dict(family="JetBrains Mono, monospace", size=10, color="#6c7a89"),
-        xaxis=dict(gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89")),
+        xaxis=dict(
+            gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
+            range=[inicio_plot, agora],
+            dtick=10 * 60 * 1000,
+            tickformat="%H:%M",
+        ),
         yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
                    tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
         legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5,
@@ -328,7 +336,7 @@ with col_sair:
 
 
 # =========================================================
-# PAINEL PRINCIPAL — ZERO HTML dentro do fragment
+# PAINEL PRINCIPAL
 # =========================================================
 @st.fragment(run_every="30s")
 def painel_temperatura():
@@ -368,7 +376,7 @@ def painel_temperatura():
     df_valid = df.dropna(subset=["DataHora"]).sort_values("DataHora").copy()
     df_valid = df_valid.dropna(subset=TEMPERATURAS, how="all")
 
-    agora = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
+    agora    = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
     df_valid = df_valid[df_valid["DataHora"] >= agora - pd.Timedelta(hours=24)]
 
     if df_valid.empty:
@@ -439,7 +447,7 @@ def painel_temperatura():
             )
         with col_t:
             st.plotly_chart(
-                criar_grafico_sensor(df_sensor, sensor),
+                criar_grafico_sensor(df_sensor, sensor, agora),
                 use_container_width=True,
                 config={"displayModeBar": False},
             )
@@ -449,7 +457,7 @@ def painel_temperatura():
     # ── TREND CONSOLIDADO ────────────────────────────────
     st.markdown("**▸ TREND CONSOLIDADO · 4 CANAIS**")
     st.plotly_chart(
-        criar_grafico_geral(df_valid),
+        criar_grafico_geral(df_valid, agora),
         use_container_width=True,
         config={"displayModeBar": False},
     )
