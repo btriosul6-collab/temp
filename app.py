@@ -174,8 +174,8 @@ def login():
     with col:
         st.image("logo.png", width=160)
         
-        st.markdown("### ◉ VOLTNADI")
-        st.caption("Sistema de Supervisão · v1.0")
+        st.markdown("### ◉ BODYTECH")
+        st.caption("Sistema de Supervisão de Temperatura")
         st.divider()
         with st.form("login_form"):
             username  = st.text_input("Usuário")
