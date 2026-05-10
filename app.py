@@ -389,7 +389,7 @@ def painel_temperatura():
     col_titulo, col_status = st.columns([3, 1])
     with col_titulo:
         st.markdown("### ◉ Monitor de Temperatura")
-        st.caption("SCADA · CONTROL ROOM · CH-01..04")
+        st.caption("SCADA · UNIDADE RIO SUL")
     with col_status:
         st.markdown(f"**{emoji_st} {label_st}**")
         st.caption(f"Última leitura: {ultima.strftime('%d/%m/%Y %H:%M:%S')}")
