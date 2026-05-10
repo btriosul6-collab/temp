@@ -368,7 +368,7 @@ def painel_temperatura():
     df_valid = df.dropna(subset=["DataHora"]).sort_values("DataHora").copy()
     df_valid = df_valid.dropna(subset=TEMPERATURAS, how="all")
 
-    agora    = pd.Timestamp.now()
+    agora = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
     df_valid = df_valid[df_valid["DataHora"] >= agora - pd.Timedelta(hours=24)]
 
     if df_valid.empty:
