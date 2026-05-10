@@ -270,12 +270,13 @@ def criar_grafico_sensor(df_sensor, nome_sensor, agora):
         height=240, margin=dict(l=44, r=16, t=10, b=36),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
         font=dict(family="JetBrains Mono, monospace", size=9, color="#6c7a89"),
+        tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="10min")
+
         xaxis=dict(
             gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
             range=[inicio_plot, agora],
-            tickmode="linear",
-            dtick=10 * 60 * 1000,
-            tickformat="%H:%M",
+            tickvals=tick_vals,
+            ticktext=[t.strftime("%H:%M") for t in tick_vals],
         ),
         yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
                    tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
@@ -307,13 +308,15 @@ def criar_grafico_geral(df_valid, agora):
         height=380, margin=dict(l=44, r=20, t=20, b=50),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
         font=dict(family="JetBrains Mono, monospace", size=10, color="#6c7a89"),
-        xaxis=dict(
-            gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
-            range=[inicio_plot, agora],
-            tickmode="linear",
-            dtick=10 * 60 * 1000,
-            tickformat="%H:%M",
-        ),
+        
+    tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="10min")
+
+    xaxis=dict(
+        gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
+        range=[inicio_plot, agora],
+        tickvals=tick_vals,
+        ticktext=[t.strftime("%H:%M") for t in tick_vals],
+    ),
         yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
                    tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
         legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5,
