@@ -173,6 +173,7 @@ def login():
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
         st.image("logo.png", width=160)
+        
         st.markdown("### ◉ VOLTNADI")
         st.caption("Sistema de Supervisão · v1.0")
         st.divider()
