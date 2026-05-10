@@ -321,7 +321,7 @@ def criar_grafico_geral(df_valid):
 # =========================================================
 col_logo, _, col_sair = st.columns([1, 9, 1])
 with col_logo:
-    st.image("logo.png", width=80)
+    st.image("logonome.png", width=80)
 with col_sair:
     if st.button("Sair", use_container_width=True):
         logout()
