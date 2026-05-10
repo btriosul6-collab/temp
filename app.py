@@ -265,7 +265,9 @@ def criar_grafico_sensor(df_sensor, nome_sensor, agora):
     ))
     for lim, cl in [(LIM_FRIO, "#00b4d8"), (LIM_NORMAL_MAX, "#06ffa5"), (LIM_ALERTA_MAX, "#ffaa00")]:
         fig.add_hline(y=lim, line_dash="dot", line_color=cl, opacity=0.4, line_width=1)
-    tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="10min")
+        
+    tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="2h")
+    
     fig.update_layout(
         height=240, margin=dict(l=44, r=16, t=10, b=36),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
@@ -276,7 +278,7 @@ def criar_grafico_sensor(df_sensor, nome_sensor, agora):
             gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
             range=[inicio_plot, agora],
             tickvals=tick_vals,
-            ticktext=[t.strftime("%H:%M") for t in tick_vals],
+            ticktext=[t.strftime("%Hh") for t in tick_vals],
         ),
         yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
                    tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
@@ -304,7 +306,8 @@ def criar_grafico_geral(df_valid, agora):
     fig.add_hrect(y0=LIM_FRIO, y1=LIM_NORMAL_MAX,       fillcolor="#06ffa5", opacity=0.05, line_width=0)
     fig.add_hrect(y0=LIM_NORMAL_MAX, y1=LIM_ALERTA_MAX, fillcolor="#ffaa00", opacity=0.05, line_width=0)
 
-    tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="10min")
+    tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="2h")
+    
     fig.update_layout(
         height=380, margin=dict(l=44, r=20, t=20, b=50),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
@@ -316,7 +319,7 @@ def criar_grafico_geral(df_valid, agora):
         gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
         range=[inicio_plot, agora],
         tickvals=tick_vals,
-        ticktext=[t.strftime("%H:%M") for t in tick_vals],
+        ticktext=[t.strftime("%Hh") for t in tick_vals],
     ),
         yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
                    tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
