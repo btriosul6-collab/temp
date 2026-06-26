@@ -1,34 +1,50 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 from streamlit_gsheets import GSheetsConnection
 
 # =========================================================
 # CONFIG
 # =========================================================
 st.set_page_config(
-    page_title="SCADA | Monitor de Temperatura",
+    page_title="SCADA | Casa de Bombas",
     page_icon="◉",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-USERNAME  = "admin"
-PASSWORD  = "admin"
-TEMPERATURAS = ["Temperatura1", "Temperatura2", "Temperatura3", "Temperatura4"]
-CORES_SENSORES = {
-    "Temperatura1": "#00d4ff",
-    "Temperatura2": "#06ffa5",
-    "Temperatura3": "#ffaa00",
-    "Temperatura4": "#ff3860",
+USERNAME = "admin"
+PASSWORD = "admin"
+
+# Mapeamento de colunas esperadas na planilha:
+# Cada bomba tem 3 colunas: Ligada/Desligada, Falha/Sem Falha, Auto/Manual/Desligada
+# Exemplo de cabeçalho esperado na aba:
+#   PiscinaRaia_B1_Status | PiscinaRaia_B1_Falha | PiscinaRaia_B1_Modo
+#   PiscinaRaia_B2_Status | PiscinaRaia_B2_Falha | PiscinaRaia_B2_Modo
+#   PiscinaRaia_B3_Status | PiscinaRaia_B3_Falha | PiscinaRaia_B3_Modo
+#   Calor_B1_Status       | Calor_B1_Falha       | Calor_B1_Modo
+#   Calor_B2_Status       | Calor_B2_Falha       | Calor_B2_Modo
+#   Calor_Temperatura     (valor numérico da temperatura, ex: 44.0)
+
+BOMBAS_CONFIG = {
+    "PISCINA / RAIA": {
+        "bombas": ["Bomba 1", "Bomba 2", "Bomba 3"],
+        "prefixo": ["PiscinaRaia_B1", "PiscinaRaia_B2", "PiscinaRaia_B3"],
+        "tem_modo": True,
+        "tem_temperatura": False,
+    },
+    "CALOR": {
+        "bombas": ["Bomba 1", "Bomba 2"],
+        "prefixo": ["Calor_B1", "Calor_B2"],
+        "tem_modo": False,
+        "tem_temperatura": True,
+        "col_temperatura": "Calor_Temperatura",
+    },
 }
-LIM_FRIO       = 18.0
-LIM_NORMAL_MAX = 26.0
-LIM_ALERTA_MAX = 32.0
-STALE_MIN      = 5
+
+URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1Q4JOXC5XP21B6sYy4TsZe50_OtL7ooKso7btXF0JfVk/edit?gid=0#gid=0"
 
 # =========================================================
-# CSS
+# CSS — mesma identidade visual do SCADA de temperatura
 # =========================================================
 st.markdown("""
 <style>
@@ -41,7 +57,7 @@ st.markdown("""
 }
 [data-testid="stHeader"] { background: transparent; height: 0; }
 #MainMenu, footer { visibility: hidden; }
-[data-testid="stToolbar"] { visibility: hidden !important; }
+[data-testid="stToolbar"]    { visibility: hidden !important; }
 [data-testid="stDecoration"] { visibility: hidden !important; }
 [data-testid="stStatusWidget"] { visibility: hidden !important; }
 .block-container { padding: 1rem 1.5rem 2rem 1.5rem; max-width: 100%; }
@@ -54,10 +70,7 @@ h1, h2, h3 {
 }
 h3 { font-size: 1.1rem !important; font-weight: 700 !important; }
 
-p, .stMarkdown p {
-    color: #e0e6ed !important;
-    font-family: 'Inter', sans-serif;
-}
+p, .stMarkdown p { color: #e0e6ed !important; font-family: 'Inter', sans-serif; }
 
 .stCaption, [data-testid="stCaptionContainer"] p {
     color: #6c7a89 !important;
@@ -65,32 +78,6 @@ p, .stMarkdown p {
     font-size: 0.72rem !important;
     letter-spacing: 1px !important;
     text-transform: uppercase !important;
-}
-
-[data-testid="metric-container"] {
-    background: linear-gradient(135deg, #131722, #1a1f2e) !important;
-    border: 1px solid #2a3142 !important;
-    border-left: 3px solid #00d4ff !important;
-    border-radius: 4px !important;
-    padding: 14px 16px !important;
-}
-[data-testid="stMetricLabel"] {
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 0.7rem !important;
-    color: #6c7a89 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1.5px !important;
-}
-[data-testid="stMetricValue"] {
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 1.8rem !important;
-    color: #ffffff !important;
-}
-[data-testid="stMetricDelta"] {
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 0.65rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1px !important;
 }
 
 hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
@@ -121,6 +108,86 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
     letter-spacing: 1.5px !important;
 }
 
+/* ── CARDS DE BOMBA ────────────────────────────── */
+.bomba-card {
+    background: linear-gradient(135deg, #131722, #1a1f2e);
+    border: 1px solid #2a3142;
+    border-top: 3px solid #00d4ff;
+    border-radius: 4px;
+    padding: 14px 16px;
+    min-height: 160px;
+    margin-bottom: 12px;
+}
+.bomba-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #e0e6ed;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+}
+.bomba-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #1a1f2e;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+}
+.bomba-row:last-child { border-bottom: none; }
+.bomba-label { color: #6c7a89; text-transform: uppercase; }
+.badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.badge-ligada    { background: rgba(6,255,165,0.15);  color: #06ffa5; border: 1px solid #06ffa5; }
+.badge-desligada { background: rgba(108,122,137,0.12); color: #6c7a89; border: 1px solid #3a4256; }
+.badge-falha     { background: rgba(255,56,96,0.15);  color: #ff3860; border: 1px solid #ff3860; }
+.badge-semfalha  { background: rgba(6,255,165,0.10);  color: #06ffa5; border: 1px solid rgba(6,255,165,0.3); }
+.badge-auto      { background: rgba(0,212,255,0.12);  color: #00d4ff; border: 1px solid #00d4ff; }
+.badge-manual    { background: rgba(255,170,0,0.15);  color: #ffaa00; border: 1px solid #ffaa00; }
+.badge-modo-off  { background: rgba(108,122,137,0.12); color: #6c7a89; border: 1px solid #3a4256; }
+
+/* ── GRUPO HEADER ───────────────────────────────── */
+.grupo-header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #00d4ff;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    border-left: 3px solid #00d4ff;
+    padding-left: 10px;
+    margin-bottom: 16px;
+}
+
+/* ── TEMPERATURA BADGE ──────────────────────────── */
+.temp-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ffaa00;
+    background: rgba(255,170,0,0.1);
+    border: 1px solid #ffaa00;
+    border-radius: 4px;
+    padding: 4px 14px;
+    display: inline-block;
+    letter-spacing: 2px;
+}
+
+/* ── STATUS GERAL ───────────────────────────────── */
+.status-online  { color: #06ffa5; font-weight: 700; }
+.status-offline { color: #ff3860; font-weight: 700; }
+.status-stale   { color: #ffaa00; font-weight: 700; }
+
 [data-testid="stExpander"] {
     background: #131722 !important; border: 1px solid #2a3142 !important;
     border-radius: 4px !important;
@@ -130,13 +197,6 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
     font-size: 0.78rem !important; text-transform: uppercase !important;
     letter-spacing: 1.5px !important;
 }
-
-.stDataFrame { background: #131722; border: 1px solid #2a3142; border-radius: 4px; }
-.stAlert {
-    background: #131722 !important; border: 1px solid #2a3142 !important;
-    border-left: 3px solid #ff3860 !important; border-radius: 2px !important;
-}
-.js-plotly-plot, .plot-container { background: transparent !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -147,27 +207,14 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 
-def classificar_temperatura(valor):
-    if valor is None or pd.isna(valor):
-        return "⚫ Offline", "#6c7a89"
-    if valor < LIM_FRIO:
-        return "❄ Frio", "#00b4d8"
-    if valor <= LIM_NORMAL_MAX:
-        return "✓ Normal", "#06ffa5"
-    if valor <= LIM_ALERTA_MAX:
-        return "⚠ Alerta", "#ffaa00"
-    return "🔴 Crítico", "#ff3860"
-
-
 # =========================================================
 # LOGIN
 # =========================================================
 def login():
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        st.image("logo.png", width=160)
         st.markdown("### ◉ BODYTECH")
-        st.caption("Sistema de Supervisão de Temperatura")
+        st.caption("Sistema de Supervisão · Casa de Bombas")
         st.divider()
         with st.form("login_form"):
             username  = st.text_input("Usuário")
@@ -191,154 +238,79 @@ if not st.session_state.logged_in:
     st.stop()
 
 # =========================================================
-# CONEXÃO
+# CONEXÃO GSHEETS
 # =========================================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 
-def tratar_coluna_temperatura(df, col):
-    df[col] = (
-        df[col].astype(str).str.strip()
-        .str.replace(",", ".", regex=False)
-        .str.replace("°C", "", regex=False)
-    )
-    df[col] = pd.to_numeric(df[col], errors="coerce")
-    return df
+# =========================================================
+# HELPERS — RENDERIZAÇÃO DOS BADGES
+# =========================================================
+def badge_status(valor: str) -> str:
+    """Ligada / Desligada"""
+    v = str(valor).strip().lower() if valor and not pd.isna(valor) else ""
+    if v in ("ligada", "1", "true", "on", "sim"):
+        return '<span class="badge badge-ligada">● Ligada</span>'
+    elif v in ("desligada", "0", "false", "off", "nao", "não"):
+        return '<span class="badge badge-desligada">○ Desligada</span>'
+    return '<span class="badge badge-desligada">-- Offline</span>'
+
+
+def badge_falha(valor: str) -> str:
+    """Falha / Sem Falha"""
+    v = str(valor).strip().lower() if valor and not pd.isna(valor) else ""
+    if v in ("falha", "1", "true", "fault", "sim"):
+        return '<span class="badge badge-falha">⚠ Falha</span>'
+    elif v in ("sem falha", "0", "false", "ok", "nao", "não", "normal"):
+        return '<span class="badge badge-semfalha">✓ Sem Falha</span>'
+    return '<span class="badge badge-modo-off">-- N/D</span>'
+
+
+def badge_modo(valor: str) -> str:
+    """Auto / Manual / Desligada"""
+    v = str(valor).strip().lower() if valor and not pd.isna(valor) else ""
+    if v in ("auto", "automatico", "automático", "2"):
+        return '<span class="badge badge-auto">Auto</span>'
+    elif v in ("manual", "man", "1"):
+        return '<span class="badge badge-manual">Manual</span>'
+    elif v in ("desligada", "desligado", "off", "0"):
+        return '<span class="badge badge-modo-off">Desligada</span>'
+    return '<span class="badge badge-modo-off">-- N/D</span>'
+
+
+def card_bomba(nome: str, status: str, falha: str, modo: str | None = None) -> str:
+    rows = f"""
+    <div class="bomba-row">
+        <span class="bomba-label">Status</span>
+        {badge_status(status)}
+    </div>
+    <div class="bomba-row">
+        <span class="bomba-label">Falha</span>
+        {badge_falha(falha)}
+    </div>
+    """
+    if modo is not None:
+        rows += f"""
+    <div class="bomba-row">
+        <span class="bomba-label">Modo</span>
+        {badge_modo(modo)}
+    </div>
+    """
+    return f"""
+    <div class="bomba-card">
+        <div class="bomba-title">▸ {nome}</div>
+        {rows}
+    </div>
+    """
 
 
 # =========================================================
-# PLOTLY — GAUGE
-# =========================================================
-def criar_gauge(valor_atual, valor_min, valor_max, sensor):
-    gauge_min = min(0, int(valor_min) - 5)
-    gauge_max = max(50, int(valor_max) + 5)
-    _, cor_bar = classificar_temperatura(valor_atual)
-
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=valor_atual,
-        number={
-            "suffix": " °C", "valueformat": ".2f",
-            "font": {"family": "JetBrains Mono, monospace", "size": 26, "color": "#ffffff"},
-        },
-        title={"text": sensor,
-               "font": {"family": "JetBrains Mono, monospace", "size": 12, "color": "#6c7a89"}},
-        gauge={
-            "axis": {
-                "range": [gauge_min, gauge_max], "tickwidth": 1,
-                "tickcolor": "#3a4256",
-                "tickfont": {"family": "JetBrains Mono, monospace", "size": 9, "color": "#6c7a89"},
-            },
-            "bar": {"color": cor_bar, "thickness": 0.28},
-            "bgcolor": "#0a0e1a", "borderwidth": 1, "bordercolor": "#2a3142",
-            "steps": [
-                {"range": [gauge_min, LIM_FRIO],            "color": "rgba(0,180,216,0.18)"},
-                {"range": [LIM_FRIO, LIM_NORMAL_MAX],       "color": "rgba(6,255,165,0.18)"},
-                {"range": [LIM_NORMAL_MAX, LIM_ALERTA_MAX], "color": "rgba(255,170,0,0.18)"},
-                {"range": [LIM_ALERTA_MAX, gauge_max],      "color": "rgba(255,56,96,0.18)"},
-            ],
-            "threshold": {"line": {"color": cor_bar, "width": 3}, "thickness": 0.85, "value": valor_atual},
-        },
-    ))
-    fig.update_layout(
-        height=240, margin=dict(l=20, r=20, t=40, b=10),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font={"color": "#e0e6ed"},
-    )
-    return fig
-
-
-# =========================================================
-# PLOTLY — TREND INDIVIDUAL
-# =========================================================
-def criar_grafico_sensor(df_sensor, nome_sensor, agora):
-    cor = CORES_SENSORES[nome_sensor]
-    r, g, b = int(cor[1:3], 16), int(cor[3:5], 16), int(cor[5:7], 16)
-    inicio_plot = agora - pd.Timedelta(hours=12)
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df_sensor["DataHora"], y=df_sensor[nome_sensor],
-        mode="lines", line=dict(color=cor, width=2),
-        fill="tozeroy", fillcolor=f"rgba({r},{g},{b},0.07)",
-        hovertemplate="%{x|%d/%m %H:%M:%S}<br>%{y:.2f} °C<extra></extra>",
-    ))
-    for lim, cl in [(LIM_FRIO, "#00b4d8"), (LIM_NORMAL_MAX, "#06ffa5"), (LIM_ALERTA_MAX, "#ffaa00")]:
-        fig.add_hline(y=lim, line_dash="dot", line_color=cl, opacity=0.4, line_width=1)
-        
-    tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="2h")
-    
-    fig.update_layout(
-        height=240, margin=dict(l=44, r=16, t=10, b=36),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
-        font=dict(family="JetBrains Mono, monospace", size=9, color="#6c7a89"),
-        
-
-        xaxis=dict(
-            gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
-            range=[inicio_plot, agora],
-            tickvals=tick_vals,
-            ticktext=[t.strftime("%Hh") for t in tick_vals],
-        ),
-        yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
-                   tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
-        showlegend=False, hovermode="x unified",
-        hoverlabel=dict(bgcolor="#131722", bordercolor=cor,
-                        font=dict(family="JetBrains Mono, monospace", color="#fff")),
-    )
-    return fig
-
-
-# =========================================================
-# PLOTLY — TREND CONSOLIDADO
-# =========================================================
-def criar_grafico_geral(df_valid, agora):
-    inicio_plot = agora - pd.Timedelta(hours=12)
-
-    fig = go.Figure()
-    for sensor in TEMPERATURAS:
-        fig.add_trace(go.Scatter(
-            x=df_valid["DataHora"], y=df_valid[sensor],
-            mode="lines", name=sensor,
-            line=dict(color=CORES_SENSORES[sensor], width=2),
-            hovertemplate=f"<b>{sensor}</b><br>%{{x|%d/%m %H:%M}}<br>%{{y:.2f}} °C<extra></extra>",
-        ))
-    fig.add_hrect(y0=LIM_FRIO, y1=LIM_NORMAL_MAX,       fillcolor="#06ffa5", opacity=0.05, line_width=0)
-    fig.add_hrect(y0=LIM_NORMAL_MAX, y1=LIM_ALERTA_MAX, fillcolor="#ffaa00", opacity=0.05, line_width=0)
-
-    tick_vals = pd.date_range(start=inicio_plot, end=agora, freq="2h")
-    
-    fig.update_layout(
-        height=380, margin=dict(l=44, r=20, t=20, b=50),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#0a0e1a",
-        font=dict(family="JetBrains Mono, monospace", size=10, color="#6c7a89"),
-        
-  
-
-    xaxis=dict(
-        gridcolor="#1a1f2e", showgrid=True, tickfont=dict(color="#6c7a89"),
-        range=[inicio_plot, agora],
-        tickvals=tick_vals,
-        ticktext=[t.strftime("%Hh") for t in tick_vals],
-    ),
-        yaxis=dict(gridcolor="#1a1f2e", showgrid=True,
-                   tickfont=dict(color="#6c7a89"), ticksuffix=" °C"),
-        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5,
-                    font=dict(family="JetBrains Mono, monospace", color="#e0e6ed", size=10),
-                    bgcolor="rgba(0,0,0,0)"),
-        hovermode="x unified",
-        hoverlabel=dict(bgcolor="#131722", bordercolor="#00d4ff",
-                        font=dict(family="JetBrains Mono, monospace", color="#fff")),
-    )
-    return fig
-
-
-# =========================================================
-# LOGOUT
+# LOGOUT BAR
 # =========================================================
 col_logo, _, col_sair = st.columns([1, 9, 1])
 with col_logo:
-    st.image("logonome.png", width=350)
+    # st.image("logonome.png", width=350)  # descomente com o arquivo disponível
+    st.markdown("**◉ bt | bodytech**")
 with col_sair:
     if st.button("Sair", use_container_width=True):
         logout()
@@ -347,20 +319,24 @@ with col_sair:
 # =========================================================
 # PAINEL PRINCIPAL
 # =========================================================
+STALE_MIN = 5
+
+
 @st.fragment(run_every="30s")
-def painel_temperatura():
-    df = conn.read(
-        spreadsheet="https://docs.google.com/spreadsheets/d/1Q4JOXC5XP21B6sYy4TsZe50_OtL7ooKso7btXF0JfVk/edit?gid=0#gid=0",
+def painel_bombas():
+    df_raw = conn.read(
+        spreadsheet=URL_PLANILHA,
         ttl=20,
     )
 
-    if df is None or len(df) == 0:
+    if df_raw is None or len(df_raw) == 0:
         st.error("Falha ao carregar dados da planilha ou planilha vazia.")
         return
 
-    df = pd.DataFrame(df)
+    df = pd.DataFrame(df_raw)
     df.columns = df.columns.str.strip()
 
+    # Identifica a última linha com DataHora
     if "DataHora" in df.columns:
         df["DataHora"] = pd.to_datetime(
             df["DataHora"].astype(str).str.strip(), errors="coerce", dayfirst=True
@@ -371,110 +347,108 @@ def painel_temperatura():
             errors="coerce", dayfirst=True,
         )
     else:
-        st.error("Colunas obrigatórias ausentes.")
+        st.error("Coluna DataHora ausente na planilha.")
         return
 
-    colunas_faltando = [c for c in TEMPERATURAS if c not in df.columns]
-    if colunas_faltando:
-        st.error(f"Colunas ausentes: {', '.join(colunas_faltando)}")
-        return
-
-    for col in TEMPERATURAS:
-        df = tratar_coluna_temperatura(df, col)
-
-    df_valid = df.dropna(subset=["DataHora"]).sort_values("DataHora").copy()
-    df_valid = df_valid.dropna(subset=TEMPERATURAS, how="all")
-
-    agora    = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
-    df_valid = df_valid[df_valid["DataHora"] >= agora - pd.Timedelta(hours=24)]
-
+    df_valid = df.dropna(subset=["DataHora"]).sort_values("DataHora")
     if df_valid.empty:
-        st.error("Sem amostras válidas nas últimas 24h.")
+        st.error("Sem registros válidos na planilha.")
         return
 
-    ultima    = df_valid.iloc[-1]["DataHora"]
+    ultima = df_valid.iloc[-1]["DataHora"]
+    agora  = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
     idade_min = (agora - ultima).total_seconds() / 60.0
 
     if idade_min <= STALE_MIN:
-        emoji_st, label_st = "🟢", "ONLINE"
+        status_cls, status_label, emoji_st = "status-online",  "ONLINE",  "🟢"
     elif idade_min <= STALE_MIN * 3:
-        emoji_st, label_st = "🟡", "STALE"
+        status_cls, status_label, emoji_st = "status-stale",   "STALE",   "🟡"
     else:
-        emoji_st, label_st = "🔴", "OFFLINE"
+        status_cls, status_label, emoji_st = "status-offline", "OFFLINE", "🔴"
+
+    ultima_linha = df_valid.iloc[-1]
 
     # ── HEADER ───────────────────────────────────────────
     col_titulo, col_status = st.columns([3, 1])
     with col_titulo:
-        st.markdown("### ◉ Monitor de Temperatura")
+        st.markdown("### ◉ Temperatura · Casa de Bombas")
         st.caption("SCADA · UNIDADE RIO SUL")
     with col_status:
-        st.markdown(f"**{emoji_st} {label_st}**")
+        st.markdown(f'<span class="{status_cls}">{emoji_st} {status_label}</span>', unsafe_allow_html=True)
         st.caption(f"Última leitura: {ultima.strftime('%d/%m/%Y %H:%M:%S')}")
         st.caption(f"Idade: {idade_min:.1f} min")
     st.divider()
 
-    # ── KPIs ─────────────────────────────────────────────
-    cols_kpi = st.columns(4)
-    for i, sensor in enumerate(TEMPERATURAS):
-        serie = df_valid[sensor].dropna()
-        v     = float(serie.iloc[-1]) if not serie.empty else None
-        tag, _ = classificar_temperatura(v)
-        valor_txt = f"{v:.2f} °C" if v is not None else "-- °C"
-        with cols_kpi[i]:
-            st.metric(label=sensor, value=valor_txt, delta=tag, delta_color="off")
+    # ── GRUPOS ───────────────────────────────────────────
+    col_piscina, col_sep, col_calor = st.columns([5, 0.2, 4])
 
-    st.divider()
+    # -------- PISCINA / RAIA --------
+    with col_piscina:
+        cfg = BOMBAS_CONFIG["PISCINA / RAIA"]
+        st.markdown('<div class="grupo-header">PISCINA / RAIA</div>', unsafe_allow_html=True)
+        cols_b = st.columns(len(cfg["bombas"]))
+        for i, (nome_bomba, prefixo) in enumerate(zip(cfg["bombas"], cfg["prefixo"])):
+            col_status_k = f"{prefixo}_Status"
+            col_falha_k  = f"{prefixo}_Falha"
+            col_modo_k   = f"{prefixo}_Modo"
 
-    # ── PAINEL POR SENSOR ────────────────────────────────
-    st.markdown("**▸ PAINEL POR SENSOR**")
-    for sensor in TEMPERATURAS:
-        df_sensor = df_valid[["DataHora", sensor]].dropna().copy()
-        if df_sensor.empty:
-            st.caption(f"{sensor} — sem dados")
-            continue
+            val_status = ultima_linha.get(col_status_k, None)
+            val_falha  = ultima_linha.get(col_falha_k,  None)
+            val_modo   = ultima_linha.get(col_modo_k,   None) if cfg["tem_modo"] else None
 
-        v_min = float(df_sensor[sensor].min())
-        v_max = float(df_sensor[sensor].max())
-        v_avg = float(df_sensor[sensor].mean())
-        v_now = float(df_sensor.iloc[-1][sensor])
-        n_pts = len(df_sensor)
+            with cols_b[i]:
+                st.markdown(
+                    card_bomba(nome_bomba, val_status, val_falha, val_modo),
+                    unsafe_allow_html=True,
+                )
 
-        st.caption(
-            f"{sensor}   "
-            f"min {v_min:.2f} °C   "
-            f"avg {v_avg:.2f} °C   "
-            f"max {v_max:.2f} °C   "
-            f"n {n_pts}"
+    # -------- SEPARADOR VERTICAL (simulado) --------
+    with col_sep:
+        st.markdown(
+            '<div style="border-left:1px solid #2a3142; height:100%; min-height:200px;"></div>',
+            unsafe_allow_html=True,
         )
 
-        col_g, col_t = st.columns([1, 2.2])
-        with col_g:
-            st.plotly_chart(
-                criar_gauge(v_now, v_min, v_max, sensor),
-                use_container_width=True,
-                config={"displayModeBar": False},
+    # -------- CALOR --------
+    with col_calor:
+        cfg = BOMBAS_CONFIG["CALOR"]
+        col_temp_header, col_temp_val = st.columns([1, 1])
+        with col_temp_header:
+            st.markdown('<div class="grupo-header">CALOR</div>', unsafe_allow_html=True)
+        with col_temp_val:
+            col_temp_k = cfg.get("col_temperatura")
+            temp_val = ultima_linha.get(col_temp_k, None) if col_temp_k else None
+            try:
+                temp_num = float(str(temp_val).replace(",", ".")) if temp_val and not pd.isna(temp_val) else None
+                temp_txt = f"{temp_num:.1f} °C" if temp_num is not None else "-- °C"
+            except Exception:
+                temp_txt = "-- °C"
+            st.markdown(
+                f'<div style="margin-top:2px;"><span class="temp-badge">Temperatura {temp_txt}</span></div>',
+                unsafe_allow_html=True,
             )
-        with col_t:
-            st.plotly_chart(
-                criar_grafico_sensor(df_sensor, sensor, agora),
-                use_container_width=True,
-                config={"displayModeBar": False},
-            )
+
+        st.write("")
+        cols_b = st.columns(len(cfg["bombas"]))
+        for i, (nome_bomba, prefixo) in enumerate(zip(cfg["bombas"], cfg["prefixo"])):
+            col_status_k = f"{prefixo}_Status"
+            col_falha_k  = f"{prefixo}_Falha"
+
+            val_status = ultima_linha.get(col_status_k, None)
+            val_falha  = ultima_linha.get(col_falha_k,  None)
+
+            with cols_b[i]:
+                st.markdown(
+                    card_bomba(nome_bomba, val_status, val_falha, modo=None),
+                    unsafe_allow_html=True,
+                )
 
     st.divider()
 
-    # ── TREND CONSOLIDADO ────────────────────────────────
-    st.markdown("**▸ TREND CONSOLIDADO · 4 CANAIS**")
-    st.plotly_chart(
-        criar_grafico_geral(df_valid, agora),
-        use_container_width=True,
-        config={"displayModeBar": False},
-    )
-
-    # ── TABELA ───────────────────────────────────────────
-    with st.expander("◉ Histórico bruto (últimas 24h)"):
+    # ── TABELA HISTÓRICO ─────────────────────────────────
+    with st.expander("◉ Histórico bruto (últimas 50 leituras)"):
         st.dataframe(
-            df_valid[["DataHora"] + TEMPERATURAS].sort_values("DataHora", ascending=False),
+            df_valid.sort_values("DataHora", ascending=False).head(50),
             use_container_width=True,
             height=300,
         )
@@ -482,11 +456,11 @@ def painel_temperatura():
     # ── FOOTER ───────────────────────────────────────────
     st.divider()
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.caption("SYS: SCADA-TEMP-01")
+    c1.caption("SYS: SCADA-BOMBAS-01")
     c2.caption("MODE: AUTO · 30s")
-    c3.caption(f"AMOSTRAS (24H): {len(df_valid)}")
+    c3.caption(f"LEITURAS CARREGADAS: {len(df_valid)}")
     c4.caption("REFRESH: 30s")
     c5.caption(f"SERVER: {agora.strftime('%d/%m/%Y %H:%M:%S')}")
 
 
-painel_temperatura()
+painel_bombas()
