@@ -450,6 +450,48 @@ def painel_bombas():
                     card_bomba(nome_bomba, val_status, val_falha, modo=None),
                     unsafe_allow_html=True,
                 )
+# ── SEGUNDA LINHA: PISCINA INFANTIL + CALOR2 ─────────
+    col_infantil, col_sep2, col_calor2 = st.columns([5, 0.2, 4])
+
+    # -------- PISCINA / INFANTIL --------
+    with col_infantil:
+        cfg = BOMBAS_CONFIG["PISCINA / INFANTIL"]
+        st.markdown('<div class="grupo-header">PISCINA / INFANTIL</div>', unsafe_allow_html=True)
+        cols_b = st.columns(len(cfg["bombas"]))
+        for i, (nome_bomba, prefixo) in enumerate(zip(cfg["bombas"], cfg["prefixo"])):
+            val_status = ultima_linha.get(f"{prefixo}_Status", None)
+            val_falha  = ultima_linha.get(f"{prefixo}_Falha",  None)
+            val_modo   = ultima_linha.get(f"{prefixo}_Modo",   None) if cfg["tem_modo"] else None
+            with cols_b[i]:
+                st.markdown(card_bomba(nome_bomba, val_status, val_falha, val_modo), unsafe_allow_html=True)
+
+    # -------- SEPARADOR --------
+    with col_sep2:
+        st.markdown(
+            '<div style="border-left:1px solid #2a3142; height:100%; min-height:200px;"></div>',
+            unsafe_allow_html=True,
+        )
+
+    # -------- CALOR2 --------
+    with col_calor2:
+        cfg = BOMBAS_CONFIG["CALOR2"]
+        col_temp_k = cfg.get("col_temperatura")
+        temp_val = ultima_linha.get(col_temp_k, None) if col_temp_k else None
+        try:
+            temp_num = float(str(temp_val).replace(",", ".")) if temp_val and not pd.isna(temp_val) else None
+            temp_txt = f"{temp_num:.1f} °C" if temp_num is not None else "-- °C"
+        except Exception:
+            temp_txt = "-- °C"
+        st.markdown(
+            f'<div class="grupo-header">CALOR &nbsp;<span class="temp-badge">Temperatura {temp_txt}</span></div>',
+            unsafe_allow_html=True,
+        )
+        cols_b = st.columns(len(cfg["bombas"]))
+        for i, (nome_bomba, prefixo) in enumerate(zip(cfg["bombas"], cfg["prefixo"])):
+            val_status = ultima_linha.get(f"{prefixo}_Status", None)
+            val_falha  = ultima_linha.get(f"{prefixo}_Falha",  None)
+            with cols_b[i]:
+                st.markdown(card_bomba(nome_bomba, val_status, val_falha, modo=None), unsafe_allow_html=True)
 
     st.divider()
 
