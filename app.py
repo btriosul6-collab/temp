@@ -397,7 +397,7 @@ def painel_bombas():
 
     # -------- PISCINA / RAIA --------
     with col_piscina:
-        cfg = BOMBAS_CONFIG["PISCINA / RAIA"]
+        cfg = BOMBAS_CONFIG["PISCINA RAIA"]
         st.markdown('<div class="grupo-header">PISCINA / RAIA</div>', unsafe_allow_html=True)
         cols_b = st.columns(len(cfg["bombas"]))
         for i, (nome_bomba, prefixo) in enumerate(zip(cfg["bombas"], cfg["prefixo"])):
@@ -424,7 +424,7 @@ def painel_bombas():
 
       # -------- CALOR --------
     with col_calor:
-        cfg = BOMBAS_CONFIG["CALOR"]
+        cfg = BOMBAS_CONFIG["CALOR RAIA"]
         col_temp_k = cfg.get("col_temperatura")
         temp_val = ultima_linha.get(col_temp_k, None) if col_temp_k else None
         try:
@@ -455,7 +455,7 @@ def painel_bombas():
 
     # -------- PISCINA / INFANTIL --------
     with col_infantil:
-        cfg = BOMBAS_CONFIG["PISCINA / INFANTIL"]
+        cfg = BOMBAS_CONFIG["PISCINA INFANTIL"]
         st.markdown('<div class="grupo-header">PISCINA / INFANTIL</div>', unsafe_allow_html=True)
         cols_b = st.columns(len(cfg["bombas"]))
         for i, (nome_bomba, prefixo) in enumerate(zip(cfg["bombas"], cfg["prefixo"])):
@@ -474,7 +474,7 @@ def painel_bombas():
 
     # -------- CALOR2 --------
     with col_calor2:
-        cfg = BOMBAS_CONFIG["CALOR2"]
+        cfg = BOMBAS_CONFIG["CALOR INFANTIL"]
         col_temp_k = cfg.get("col_temperatura")
         temp_val = ultima_linha.get(col_temp_k, None) if col_temp_k else None
         try:
