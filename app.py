@@ -26,18 +26,31 @@ PASSWORD = "admin"
 #   Calor_Temperatura     (valor numérico da temperatura, ex: 44.0)
 
 BOMBAS_CONFIG = {
-    "PISCINA / RAIA": {
+    "PISCINA RAIA": {
         "bombas": ["Bomba 1", "Bomba 2", "Bomba 3"],
         "prefixo": ["PiscinaRaia_B1", "PiscinaRaia_B2", "PiscinaRaia_B3"],
         "tem_modo": True,
         "tem_temperatura": False,
     },
-    "CALOR": {
+    "CALOR RAIA": {
         "bombas": ["Bomba 1", "Bomba 2"],
         "prefixo": ["Calor_B1", "Calor_B2"],
         "tem_modo": False,
         "tem_temperatura": True,
         "col_temperatura": "Calor_Temperatura",
+    },
+     "PISCINA INFANTIL": {
+        "bombas": ["Bomba 1", "Bomba 2"],
+        "prefixo": ["PiscinaInfantil_B1", "PiscinaInfantil_B2"],
+        "tem_modo": True,
+        "tem_temperatura": False,
+    },
+    "CALOR INFANTIL": {
+        "bombas": ["Bomba 1", "Bomba 2"],
+        "prefixo": ["Calor2_B1", "Calor2_B2"],
+        "tem_modo": False,
+        "tem_temperatura": True,
+        "col_temperatura": "Calor2_Temperatura",
     },
 }
 
