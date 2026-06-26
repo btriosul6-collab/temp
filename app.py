@@ -172,7 +172,7 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
 /* ── TEMPERATURA BADGE ──────────────────────────── */
 .temp-badge {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.4rem;
+    font-size: 0.82rem;
     font-weight: 700;
     color: #ffaa00;
     background: rgba(255,170,0,0.1);
