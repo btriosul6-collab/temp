@@ -409,26 +409,21 @@ def painel_bombas():
             unsafe_allow_html=True,
         )
 
-    # -------- CALOR --------
+      # -------- CALOR --------
     with col_calor:
         cfg = BOMBAS_CONFIG["CALOR"]
-        col_temp_header, col_temp_val = st.columns([1, 1])
-        with col_temp_header:
-            st.markdown('<div class="grupo-header">CALOR</div>', unsafe_allow_html=True)
-        with col_temp_val:
-            col_temp_k = cfg.get("col_temperatura")
-            temp_val = ultima_linha.get(col_temp_k, None) if col_temp_k else None
-            try:
-                temp_num = float(str(temp_val).replace(",", ".")) if temp_val and not pd.isna(temp_val) else None
-                temp_txt = f"{temp_num:.1f} °C" if temp_num is not None else "-- °C"
-            except Exception:
-                temp_txt = "-- °C"
-            st.markdown(
-                f'<div style="margin-top:2px;"><span class="temp-badge">Temperatura {temp_txt}</span></div>',
-                unsafe_allow_html=True,
-            )
+        col_temp_k = cfg.get("col_temperatura")
+        temp_val = ultima_linha.get(col_temp_k, None) if col_temp_k else None
+        try:
+            temp_num = float(str(temp_val).replace(",", ".")) if temp_val and not pd.isna(temp_val) else None
+            temp_txt = f"{temp_num:.1f} °C" if temp_num is not None else "-- °C"
+        except Exception:
+            temp_txt = "-- °C"
+        st.markdown(
+            f'<div class="grupo-header">CALOR &nbsp;<span class="temp-badge">Temperatura {temp_txt}</span></div>',
+            unsafe_allow_html=True,
+        )
 
-        st.write("")
         cols_b = st.columns(len(cfg["bombas"]))
         for i, (nome_bomba, prefixo) in enumerate(zip(cfg["bombas"], cfg["prefixo"])):
             col_status_k = f"{prefixo}_Status"
