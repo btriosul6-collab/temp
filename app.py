@@ -229,6 +229,7 @@ if "logged_in" not in st.session_state:
 def login():
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
+        st.image("logo.png", width=160)
         st.markdown("### ◉ BODYTECH")
         st.caption("Sistema de Supervisão · Casa de Bombas")
         st.divider()
@@ -381,6 +382,7 @@ def card_quadro(ultima_linha) -> str:
 # =========================================================
 col_logo, _, col_sair = st.columns([1, 9, 1])
 with col_logo:
+    st.image("logonome.png", width=350)
     st.markdown("**◉ bt | bodytech**")
 with col_sair:
     if st.button("Sair", use_container_width=True):
