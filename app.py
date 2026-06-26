@@ -383,7 +383,6 @@ def card_quadro(ultima_linha) -> str:
 col_logo, _, col_sair = st.columns([1, 9, 1])
 with col_logo:
     st.image("logonome.png", width=350)
-    st.markdown("**◉ bt | bodytech**")
 with col_sair:
     if st.button("Sair", use_container_width=True):
         logout()
