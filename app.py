@@ -547,10 +547,10 @@ def painel_bombas():
     st.divider()
 
     # ── TABELA ───────────────────────────────────────────
-    with st.expander("◉ Histórico bruto (últimas 50 leituras)"):
-        st.dataframe(
-            df_valid.sort_values("DataHora", ascending=False).head(50),
-            use_container_width=True, height=300)
+    # with st.expander("◉ Histórico bruto (últimas 50 leituras)"):
+    #    st.dataframe(
+     #       df_valid.sort_values("DataHora", ascending=False).head(50),
+      #      use_container_width=True, height=300)
 
     # ── FOOTER ───────────────────────────────────────────
     st.divider()
