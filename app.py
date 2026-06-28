@@ -380,7 +380,7 @@ def card_quadro(ultima_linha) -> str:
 # =========================================================
 # LOGOUT BAR
 # =========================================================
-col_logo, _, col_sair = st.columns([1, 9, 1])
+col_logo, _, col_voltnadi, col_sair = st.columns([2, 7, 1, 1])
 with col_logo:
     st.image("logonome.png", width=350)
 with col_voltnadi:
