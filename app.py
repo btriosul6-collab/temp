@@ -438,7 +438,7 @@ def painel_bombas():
     # ── HEADER ───────────────────────────────────────────
     col_titulo, col_status = st.columns([3, 1])
     with col_titulo:
-        st.markdown("### ◉ Temperatura · Casa de Bombas")
+        st.markdown("### ◉ Casa de Bombas")
         st.caption("SCADA · UNIDADE RIO SUL")
     with col_status:
         st.markdown(f'<span class="{status_cls}">{emoji_st} {status_label}</span>', unsafe_allow_html=True)
