@@ -384,7 +384,7 @@ col_logo, _, col_sair = st.columns([1, 9, 1])
 with col_logo:
     st.image("logonome.png", width=350)
 with col_voltnadi:
-    st.image("LOGO VOLTNADI.png", width=120)    
+    st.image("logovoltnadi.png", width=120)    
 with col_sair:
     if st.button("Sair", use_container_width=True):
         logout()
