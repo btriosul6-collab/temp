@@ -271,7 +271,11 @@ def _parse_dt(s: pd.Series) -> pd.Series:
         unit = "ms" if num.median() > 1e11 else "s"
         dt = pd.to_datetime(num, unit=unit, utc=True, errors="coerce")
         return dt.dt.tz_convert(TZ).dt.tz_localize(None)
-    dt = pd.to_datetime(s, errors="coerce", dayfirst=True)
+    # ISO (AAAA-MM-DD ...) primeiro, SEM dayfirst: com dayfirst o pandas inverte dia/mês
+    # e descarta datas com dia > 12.
+    dt = pd.to_datetime(s, format="ISO8601", errors="coerce")
+    if dt.notna().mean() < 0.5:
+        dt = pd.to_datetime(s, errors="coerce", dayfirst=True)   # formato BR: 19/10/2026 18:58:00
     if getattr(dt.dt, "tz", None) is not None:
         dt = dt.dt.tz_convert(TZ).dt.tz_localize(None)
     return dt
