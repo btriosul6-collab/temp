@@ -17,6 +17,9 @@ PASSWORD = "admin"
 
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1si78r9HgpgbFTUNbeaxZI9lZBozciHYyTl99U5QpOrs/edit?usp=sharing"
 
+# Aba a ler: nome ou gid numérico (ex.: 123456789). None = primeira aba.
+WORKSHEET = "Leituras"
+
 TZ = "America/Sao_Paulo"
 STALE_MIN = 5
 
@@ -354,7 +357,17 @@ with col_sair:
 # =========================================================
 @st.fragment(run_every="30s")
 def painel_temperaturas():
-    df_raw = conn.read(spreadsheet=URL_PLANILHA, ttl=20)
+    try:
+        df_raw = conn.read(spreadsheet=URL_PLANILHA, worksheet=WORKSHEET, ttl=20)
+    except pd.errors.EmptyDataError:
+        st.warning(
+            "A aba lida está vazia (sem cabeçalho nem linhas). Confira se os dados estão na "
+            "primeira aba ou informe o nome/gid da aba em WORKSHEET no topo do app.py.")
+        return
+    except Exception as e:
+        st.error(f"Não foi possível ler a planilha ({type(e).__name__}). "
+                 "Verifique o compartilhamento (qualquer pessoa com o link: leitor) e a aba.")
+        return
 
     if df_raw is None or len(df_raw) == 0:
         st.error("Falha ao carregar dados da planilha ou planilha vazia.")
@@ -381,8 +394,15 @@ def painel_temperaturas():
     valores = [para_float(ultima_linha.iloc[COL_INI + i]) for i in range(len(SENSORES))]
     validos = [v for v in valores if v is not None]
 
+    # coluna clp_online (B): 1 = CLP respondendo, 0 = CLP fora
+    col_clp = next((c for c in df.columns if c.lower() == "clp_online"), df.columns[1])
+    clp_on  = para_float(ultima_linha[col_clp])
+
     if idade_min <= STALE_MIN:
-        status_cls, status_label, emoji_st = "status-online",  "ONLINE",  "🟢"
+        if clp_on == 0:
+            status_cls, status_label, emoji_st = "status-offline", "CLP OFFLINE", "🔴"
+        else:
+            status_cls, status_label, emoji_st = "status-online",  "ONLINE",  "🟢"
     elif idade_min <= STALE_MIN * 3:
         status_cls, status_label, emoji_st = "status-stale",   "STALE",   "🟡"
     else:
