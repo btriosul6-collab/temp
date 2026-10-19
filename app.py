@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
+from urllib.error import HTTPError
+from urllib.parse import quote
 
 # =========================================================
 # CONFIG
@@ -15,9 +16,9 @@ st.set_page_config(
 USERNAME = "admin"
 PASSWORD = "admin"
 
-URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1si78r9HgpgbFTUNbeaxZI9lZBozciHYyTl99U5QpOrs/edit?usp=sharing"
+SHEET_ID = "1si78r9HgpgbFTUNbeaxZI9lZBozciHYyTl99U5QpOrs"
 
-# Aba a ler: nome ou gid numérico (ex.: 123456789). None = primeira aba.
+# Aba a ler: nome (ex.: "Leituras") ou gid numérico (ex.: "123456789").
 WORKSHEET = "Leituras"
 
 TZ = "America/Sao_Paulo"
@@ -42,6 +43,8 @@ COL_FIM = COL_INI + len(SENSORES)
 # Escala do gauge e limites de alarme
 G_MIN, G_MAX = 10.0, 40.0
 LIM_BAIXO, LIM_ALTO = 10.0, 40.0   # fora disso => alarme (vermelho)
+# Leituras fora desta faixa são tratadas como FALHA DE SENSOR (ex.: 127,9 = entrada saturada/sem sensor; 0 = sem dado)
+V_MIN_VALIDO, V_MAX_VALIDO = 1.0, 100.0
 
 # =========================================================
 # CSS
@@ -118,6 +121,7 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
 }
 .bomba-card.alarme { border-top-color: #ff3860; }
 .bomba-card.nd     { border-top-color: #3a4256; }
+.bomba-card.falha  { border-top-color: #ffaa00; }
 .bomba-title {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.78rem;
@@ -150,6 +154,7 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
 .bomba-card.alarme .tp-fill { stroke: #ff3860; }
 .bomba-card.alarme .tp-gv   { fill: #ff3860; }
 .bomba-card.nd .tp-gv       { fill: #6c7a89; }
+.bomba-card.falha .tp-gv    { fill: #ffaa00; }
 
 /* ── BADGES ─────────────────────────────────────────── */
 .badge {
@@ -164,6 +169,7 @@ hr { border-color: #2a3142 !important; margin: 10px 0 !important; }
 .badge-ok     { background: rgba(6,255,165,0.15);   color: #06ffa5; border: 1px solid #06ffa5; }
 .badge-alto   { background: rgba(255,56,96,0.15);   color: #ff3860; border: 1px solid #ff3860; }
 .badge-baixo  { background: rgba(0,212,255,0.12);   color: #00d4ff; border: 1px solid #00d4ff; }
+.badge-falha  { background: rgba(255,170,0,0.15);   color: #ffaa00; border: 1px solid #ffaa00; }
 .badge-nd     { background: rgba(108,122,137,0.12); color: #6c7a89; border: 1px solid #3a4256; }
 
 /* ── GRUPO HEADER ───────────────────────────────── */
@@ -240,9 +246,18 @@ if not st.session_state.logged_in:
     st.stop()
 
 # =========================================================
-# CONEXÃO
+# LEITURA (CSV público via gviz — não depende de credenciais)
 # =========================================================
-conn = st.connection("gsheets", type=GSheetsConnection)
+def url_planilha() -> str:
+    base = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+    ws = str(WORKSHEET).strip()
+    return f"{base}&gid={ws}" if ws.isdigit() else f"{base}&sheet={quote(ws)}"
+
+
+@st.cache_data(ttl=20, show_spinner=False)
+def ler_planilha(url: str) -> pd.DataFrame:
+    # dtype=str: preserva "23,5" (vírgula decimal da planilha pt-BR); a conversão é feita em para_float()
+    return pd.read_csv(url, dtype=str, keep_default_na=False, na_values=[""])
 
 
 # =========================================================
@@ -289,9 +304,15 @@ def para_float(v):
 # =========================================================
 # CARD
 # =========================================================
+def invalido(valor) -> bool:
+    return valor is not None and not (V_MIN_VALIDO <= valor <= V_MAX_VALIDO)
+
+
 def classifica(valor):
     if valor is None:
         return "nd"
+    if invalido(valor):
+        return "falha"
     if valor < LIM_BAIXO or valor > LIM_ALTO:
         return "alarme"
     return "ok"
@@ -300,6 +321,8 @@ def classifica(valor):
 def badge_estado(valor) -> str:
     if valor is None:
         return '<span class="badge badge-nd">-- N/D</span>'
+    if invalido(valor):
+        return '<span class="badge badge-falha">⚠ Falha sensor</span>'
     if valor > LIM_ALTO:
         return '<span class="badge badge-alto">⚠ Alta</span>'
     if valor < LIM_BAIXO:
@@ -311,6 +334,9 @@ def gauge_svg(valor) -> str:
     if valor is None:
         frac = 0.0
         txt = "--"
+    elif invalido(valor):
+        frac = 0.0
+        txt = "ERR"
     else:
         frac = min(1.0, max(0.0, (valor - G_MIN) / (G_MAX - G_MIN)))
         txt = f"{valor:.1f}"
@@ -358,15 +384,16 @@ with col_sair:
 @st.fragment(run_every="30s")
 def painel_temperaturas():
     try:
-        df_raw = conn.read(spreadsheet=URL_PLANILHA, worksheet=WORKSHEET, ttl=20)
+        df_raw = ler_planilha(url_planilha())
     except pd.errors.EmptyDataError:
-        st.warning(
-            "A aba lida está vazia (sem cabeçalho nem linhas). Confira se os dados estão na "
-            "primeira aba ou informe o nome/gid da aba em WORKSHEET no topo do app.py.")
+        st.warning(f"A aba '{WORKSHEET}' está vazia (sem cabeçalho nem linhas).")
+        return
+    except HTTPError as e:
+        st.error(f"O Google respondeu HTTP {e.code} ao ler a aba '{WORKSHEET}'. "
+                 "Confira o nome da aba e o compartilhamento (qualquer pessoa com o link: leitor).")
         return
     except Exception as e:
-        st.error(f"Não foi possível ler a planilha ({type(e).__name__}). "
-                 "Verifique o compartilhamento (qualquer pessoa com o link: leitor) e a aba.")
+        st.error(f"Não foi possível ler a planilha ({type(e).__name__}: {e}).")
         return
 
     if df_raw is None or len(df_raw) == 0:
@@ -392,7 +419,7 @@ def painel_temperaturas():
     idade_min    = (agora - ultima).total_seconds() / 60.0
 
     valores = [para_float(ultima_linha.iloc[COL_INI + i]) for i in range(len(SENSORES))]
-    validos = [v for v in valores if v is not None]
+    validos = [v for v in valores if v is not None and not invalido(v)]
 
     # coluna clp_online (B): 1 = CLP respondendo, 0 = CLP fora
     col_clp = next((c for c in df.columns if c.lower() == "clp_online"), df.columns[1])
@@ -429,11 +456,13 @@ def painel_temperaturas():
         resumo = "SEM LEITURAS VÁLIDAS"
     n_alarme = sum(1 for v in valores if classifica(v) == "alarme")
     n_nd     = sum(1 for v in valores if v is None)
+    n_falha  = sum(1 for v in valores if classifica(v) == "falha")
     st.markdown(
         f'<div class="grupo-header">AMBIENTES <span class="temp-badge">{resumo}</span></div>',
         unsafe_allow_html=True)
-    if n_alarme or n_nd:
-        st.caption(f"Alarmes: {n_alarme}  ·  Sem leitura: {n_nd}  ·  Faixa normal: {LIM_BAIXO:.0f}–{LIM_ALTO:.0f} °C")
+    if n_alarme or n_nd or n_falha:
+        st.caption(f"Alarmes: {n_alarme}  ·  Falha de sensor: {n_falha}  ·  Sem leitura: {n_nd}  ·  "
+                   f"Faixa normal: {LIM_BAIXO:.0f}–{LIM_ALTO:.0f} °C")
 
     # ── CARDS (2 linhas x 5) ─────────────────────────────
     por_linha = 5
